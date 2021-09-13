@@ -15,10 +15,8 @@ class FC(torch.nn.Module):
         self.inp_dim= inp_dim
         self.num_tasks= num_tasks
         self.rep_net= nn.Sequential(                    
-                    nn.Linear(inp_dim, inp_dim),
-                    nn.ReLU(),
-#                     nn.Linear(100, 100),
-#                     nn.ReLU(),
+                    nn.Linear(inp_dim, inp_dim),            
+                    nn.LeakyReLU(0.1),
 #                     nn.Linear(100, 100),
 #                     nn.ReLU(),
 #                     nn.Linear(100, inp_dim),
