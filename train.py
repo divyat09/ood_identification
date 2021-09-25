@@ -60,10 +60,10 @@ num_seeds= args.num_seeds
 
 # Load Dataset
 kwargs={}
-data_obj= BaseDataLoader(data_case='train')
+data_obj= BaseDataLoader(data_case='train', data_dim= data_dim, num_tasks= num_tasks)
 train_dataset= data_utils.DataLoader(data_obj, batch_size=batch_size, shuffle=True, **kwargs )
 
-data_obj= BaseDataLoader(data_case='test')
+data_obj= BaseDataLoader(data_case='test', data_dim= data_dim, num_tasks=num_tasks)
 test_dataset= data_utils.DataLoader(data_obj, batch_size=batch_size, shuffle=True, **kwargs )
 
 res={}
@@ -81,7 +81,7 @@ for seed in range(1, 1+num_seeds):
     #Optimizer
     opt= optim.SGD([
                     {'params': filter(lambda p: p.requires_grad, model.parameters()) }, 
-                    ], lr= lr, weight_decay= 5e-4, momentum= 0.9,  nesterov=True ) 
+                    ], lr= lr, weight_decay= 5e-3, momentum= 0.9,  nesterov=True ) 
 
     #MSE Loss
     loss_function= nn.MSELoss()
@@ -99,14 +99,24 @@ for seed in range(1, 1+num_seeds):
 
             #Backward Pass
             loss.backward()
+            
+            
+#             batch_grad_norm=0.0
+#             for p in model.parameters():
+#                 param_norm = p.grad.detach().data.norm(2)
+#                 batch_grad_norm += param_norm.item() ** 2
+#             batch_grad_norm = batch_grad_norm ** 0.5
+#             print(batch_grad_norm)                
+            
             opt.step()
             opt.zero_grad()
-
+            
+            
             train_loss+= loss.item()
             count+=1
 
-#         print('Done Training for Epoch: ', epoch)
-#         print('MSE Loss: ', train_loss)
+        print('Done Training for Epoch: ', epoch)
+        print('MSE Loss: ', train_loss)
 
 
 #     #Test
