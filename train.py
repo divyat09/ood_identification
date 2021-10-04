@@ -18,9 +18,9 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from sklearn.decomposition import FastICA
 
-
 from data.data_loader import BaseDataLoader
-from models.fc_regression import FC
+from algorithms.erm import ERM
+from utils.metrics import *
 
 
 def compute_rmse(pred_z, z):
@@ -28,27 +28,31 @@ def compute_rmse(pred_z, z):
     z= (z - np.mean(z))/ np.std(z)
     pred_z= (pred_z - np.mean(pred_z))/ np.std(pred_z)
         
-    print(np.sqrt( np.mean((z - pred_z)**2)) )
-    
+    print(np.sqrt( np.mean((z - pred_z)**2)) )    
 
-# Linear Regression between z and z_hat
-def linear_regression_approx(z, z_pred):
-    return np.matmul( np.linalg.inv( 1e-8 + np.matmul(z_pred.transpose(), z_pred)), np.matmul(z_pred.transpose(), z)  )
 
 # Input Parsing
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_dim', type=int, default= 2, 
+parser.add_argument('--data_dim', type=int, default= 2,
                     help='')
-parser.add_argument('--num_tasks', type=int, default=1, 
+parser.add_argument('--num_tasks', type=int, default=1,
                     help='')
-parser.add_argument('--batch_size', type=int, default= 16, 
+parser.add_argument('--batch_size', type=int, default= 16,
                     help='')
-parser.add_argument('--lr', type=float, default= 0.01, 
+parser.add_argument('--lr', type=float, default= 0.01,
                     help='')
-parser.add_argument('--num_epochs', type=int, default= 20, 
+parser.add_argument('--weight_decay', type=float, default= 5e-4,
                     help='')
-parser.add_argument('--num_seeds', type=int, default=3, 
+parser.add_argument('--num_epochs', type=int, default= 20,
                     help='')
+parser.add_argument('--num_seeds', type=int, default=3,
+                    help='')
+parser.add_argument('--num_layers', type=int, default=2,
+                    help='Number of FCN layers in representation learning network')
+parser.add_argument('--latent_pred_task', type=int, default=0,
+                    help='')
+parser.add_argument('--invertible_model', type=int, default=0,
+                   help='')
 
 args = parser.parse_args()
 batch_size= args.batch_size
@@ -57,11 +61,15 @@ num_epochs= args.num_epochs
 data_dim= args.data_dim
 num_tasks= args.num_tasks
 num_seeds= args.num_seeds
+invertible_model= args.invertible_model
 
 # Load Dataset
 kwargs={}
 data_obj= BaseDataLoader(data_case='train', data_dim= data_dim, num_tasks= num_tasks)
 train_dataset= data_utils.DataLoader(data_obj, batch_size=batch_size, shuffle=True, **kwargs )
+
+data_obj= BaseDataLoader(data_case='val', data_dim= data_dim, num_tasks= num_tasks)
+val_dataset= data_utils.DataLoader(data_obj, batch_size=batch_size, shuffle=True, **kwargs )
 
 data_obj= BaseDataLoader(data_case='test', data_dim= data_dim, num_tasks=num_tasks)
 test_dataset= data_utils.DataLoader(data_obj, batch_size=batch_size, shuffle=True, **kwargs )
@@ -75,139 +83,106 @@ for seed in range(1, 1+num_seeds):
     np.random.seed(seed*10) 
     torch.manual_seed(seed*10)
     
-    #Load Model
-    model= FC(data_dim, num_tasks)
-
-    #Optimizer
-    opt= optim.SGD([
-                    {'params': filter(lambda p: p.requires_grad, model.parameters()) }, 
-                    ], lr= lr, weight_decay= 5e-3, momentum= 0.9,  nesterov=True ) 
-
-    #MSE Loss
-    loss_function= nn.MSELoss()
+    #Load Algorithm
+    method= ERM(args, train_dataset, val_dataset)
     
-    print('')
     #Training
-    for epoch in range(num_epochs):
-        train_loss=0.0
-        count=0
-        for batch_idx, (x, y, z) in enumerate(train_dataset):
-
-            # Forward Pass
-            out= model(x)
-            loss= torch.mean(torch.sum((out-y)**2, dim=1))
-
-            #Backward Pass
-            loss.backward()
-            
-            
-#             batch_grad_norm=0.0
-#             for p in model.parameters():
-#                 param_norm = p.grad.detach().data.norm(2)
-#                 batch_grad_norm += param_norm.item() ** 2
-#             batch_grad_norm = batch_grad_norm ** 0.5
-#             print(batch_grad_norm)                
-            
-            opt.step()
-            opt.zero_grad()
-            
-            
-            train_loss+= loss.item()
-            count+=1
-
-        print('Done Training for Epoch: ', epoch)
-        print('MSE Loss: ', train_loss)
-
-
-#     #Test
-#     model.eval()
-#     true_y=[]
-#     pred_y=[]
-#     for batch_idx, (x, y, z) in enumerate(train_dataset):
-#         true_y.append(y)
-#         pred_y.append(model(x))
-
-#     true_y= torch.cat(true_y).detach().numpy()
-#     pred_y= torch.cat(pred_y).detach().numpy()
-
-#     print(true_y.shape, pred_y.shape)
-#     plt.plot(range(true_y.shape[0]), pred_y, label='Predicted Var' )
-#     plt.plot(range(true_y.shape[0]), true_y, label='True Var' )
-#     plt.legend()
-#     plt.savefig('train_res.png')
-#     plt.clf()
-
-    #Test
-    model.eval()
-    true_y=[]
-    pred_y=[]
-    true_z= []
-    pred_z= []
-    for batch_idx, (x, y, z) in enumerate(test_dataset):
-
-        true_z.append(z)
-        pred_z.append(model.rep_net(x))
-
-        true_y.append(y)
-        pred_y.append(model(x))
-
-    true_z= torch.cat(true_z).detach().numpy()
-    pred_z= torch.cat(pred_z).detach().numpy()
-
-    true_y= torch.cat(true_y).detach().numpy()
-    pred_y= torch.cat(pred_y).detach().numpy()
+    method.train()
     
-    target_pred_err= np.sqrt(np.mean((true_y - pred_y)**2))
+    #Test
+    method.load_model()
+    
+    # When the task is to predict z from x
+    if args.latent_pred_task:
+        
+        true_y, pred_y, true_z, pred_z= get_test_predictions(method.model, test_dataset)
+        
+        #Latent Prediction Error
+        rmse,r2= get_latent_prediction_error(pred_z, true_z)   
+
+        key= 'latent_pred_rmse'
+        if key not in res.keys():
+            res[key]=[]
+        res[key].append(rmse)
+
+        key= 'latent_pred_r2'
+        if key not in res.keys():
+            res[key]=[]
+        res[key].append(r2)
+
+        continue
+    
+    true_y, pred_y, true_z, pred_z= get_test_predictions(method.model, test_dataset)    
+
+    #Label Prediction Error
+    rmse,r2= get_label_prediction_error(pred_y, true_y)    
+    
     key= 'target_pred_rmse'
     if key not in res.keys():
         res[key]= []
-    res[key].append(target_pred_err)    
+    res[key].append(rmse)
     
-    for idx in range(true_y.shape[1]):
-        plt.plot(range(true_y.shape[0]), pred_y[:, idx], label='Predicted Var' )
-        plt.plot(range(true_y.shape[0]), true_y[:, idx], label='True Var' )
-        plt.legend()
-        plt.savefig('plots/test_res_' + str(seed) + '_' + str(idx) + '.png')
-        plt.clf()
+    key= 'target_pred_r2'
+    if key not in res.keys():
+        res[key]= []
+    res[key].append(r2)    
     
-#     print('MAE between z and z_hat')
-#     compute_rmse(pred_z, true_z)
-
-    # Linear Regression Approximation between z and z_hat
-    reg_mat= linear_regression_approx(true_z, pred_z)
-    pred_err= np.sqrt( np.mean( (true_z - np.matmul(pred_z, reg_mat))**2 ) )
-    print('')
-    print('Linear Regression Approximation between z and z_hat')
-    print(reg_mat)
-    # print('L0 Norm: ', np.sum( np.abs(reg_mat - 0.0001) ) )
-#     print('L1 Norm: ', np.linalg.norm(reg_mat, ord=1))
-    print('Pred Error: ', pred_err)
+    #Latent Prediction Error
+    rmse,r2= get_latent_prediction_error(pred_z, true_z)   
     
     key= 'latent_pred_rmse'
     if key not in res.keys():
         res[key]=[]
-    res[key].append(pred_err)
-        
-    # ICA Transformation    
-    ica_transform= FastICA()
-    z_hat_upd= ica_transform.fit_transform(pred_z)
+    res[key].append(rmse)
 
-    reg_mat= linear_regression_approx(true_z, z_hat_upd)
-    pred_err= np.sqrt( np.mean( (true_z - np.matmul(z_hat_upd, reg_mat))**2 ) )
-    print('')
-    print('Post ICA Transformation')
-    print(reg_mat)
-    # print('L0 Norm: ', np.linalg.norm(reg_mat, ord=1))
-#     print('L1 Norm: ', np.linalg.norm(reg_mat, ord=1))
-    print('Pred Error: ', pred_err)
-    
-    key= 'ica_latent_pred_rmse'
+    key= 'latent_pred_r2'
     if key not in res.keys():
         res[key]=[]
-    res[key].append(pred_err)
+    res[key].append(r2)
+    
+    
+    #ICA Transformation
+    method.train_ica()
+    ica_z= get_ica_sources(pred_z, method.ica_transform) 
+    
+    #Label Prediction Error with ICA
+    rmse,r2= get_label_prediction_error_ica(ica_z, true_y)    
+    
+    key= 'target_ica_pred_rmse'
+    if key not in res.keys():
+        res[key]= []
+    res[key].append(rmse)
+    
+    key= 'target_ica_pred_r2'
+    if key not in res.keys():
+        res[key]= []
+    res[key].append(r2)    
+    
+    #Latent Prediction Error with ICA
+    rmse,r2= get_latent_prediction_error(ica_z, true_z) 
+    
+    key= 'latent_ica_pred_rmse'
+    if key not in res.keys():
+        res[key]=[]
+    res[key].append(rmse)
 
-print(res)
-print('')
+    key= 'latent_ica_pred_r2'
+    if key not in res.keys():
+        res[key]=[]
+    res[key].append(r2)
+        
+    # Plotting RMSE values in label prediction
+    for idx in range(true_y.shape[1]):
+        plt.plot(range(true_y.shape[0]), pred_y[:, idx], label='Predicted Var' )
+        plt.plot(range(true_y.shape[0]), true_y[:, idx], label='True Var' )
+        plt.legend()
+        plt.savefig('plots/test_res_' + 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_seed_' + str(seed) + '_' + str(idx) + '.png')
+        plt.clf()
+    
+    reg_z= linear_regression_approx(true_z, pred_z)
+    pred_err= np.sqrt( np.mean( (true_z - reg_z)**2 ) )
+
+
 print('Final Results')
 for key in res.keys():
     res[key]= np.array(res[key])

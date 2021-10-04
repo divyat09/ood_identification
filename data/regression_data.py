@@ -27,7 +27,7 @@ def sigmoid(x):
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dim', type=int, default=2, 
                     help='')
-parser.add_argument('--num_tasks', type=int, default=1, 
+parser.add_argument('--num_tasks_list', nargs='+', type=int, default=[1, 2, 4, 8], 
                     help='')
 parser.add_argument('--train_size', type=int, default=5000, 
                     help='')
@@ -36,7 +36,7 @@ parser.add_argument('--test_size', type=int, default=100,
 
 args = parser.parse_args()
 data_dim= args.data_dim
-num_tasks= args.num_tasks
+num_tasks_list= args.num_tasks_list
 
 
 #Random Seed
@@ -44,21 +44,17 @@ seed= 10
 random.seed(seed*10)
 np.random.seed(seed*10) 
 
-
 # Invertible MLP from the ICML 21 paper
 rep_net = construct_invertible_mlp(
     n=data_dim,
-    n_layers=1,
+    n_layers=2,
     act_fct='leaky_relu',
     cond_thresh_ratio=0.0,
-    n_iter_cond_thresh=25000,
+    n_iter_cond_thresh=25000 ,
 )
 
-#Transformation Functions
-A = 0.5*np.random.rand(data_dim, data_dim)
-# To ensure matrix A is invertible
-# A = 0.5*np.dot(A, A.transpose())
-g = np.random.rand(data_dim, num_tasks)
+print('Invertible MLP to generate x from z')
+print(rep_net)
 
 # rep_net= nn.Sequential(
 #             nn.Linear(data_dim, data_dim),    
@@ -68,54 +64,58 @@ g = np.random.rand(data_dim, num_tasks)
 # )
 
 
-
-for data_case in ['train', 'test']:
-
-    if data_case == 'train':
-        dataset_size= args.train_size
-    elif data_case == 'test':
-        dataset_size= args.test_size    
-
-    z= np.zeros((dataset_size, data_dim))
-#     for i in range(data_dim):
-#         z[:, i]= np.random.laplace(0, 1, dataset_size)
-    z= np.random.multivariate_normal(np.zeros(data_dim), np.eye(data_dim), dataset_size)
-
-    # Sample x and y conditioned on the true latent z
-#     x= np.matmul(z, A)
-#     x= sigmoid(x)
-
-    with torch.no_grad():
-        x= rep_net( torch.Tensor(z) ).detach().cpu().numpy()
+for num_tasks in num_tasks_list:
     
-    print( np.linalg.svd( np.matmul(x.T, x) )[1] )
-        
-#     # Sample the latent variable
-
-#     # Sample x and y conditioned on the true latent z
-#     x= np.matmul(z, A) 
-
-#     y= 50*np.matmul(z, g) + np.random.multivariate_normal(np.zeros(num_tasks), np.eye(num_tasks), dataset_size)
-    y= 50*np.matmul(z, g)/math.sqrt(data_dim) + np.random.multivariate_normal(np.zeros(num_tasks), np.eye(num_tasks), dataset_size)
-
-    print('Data Dimensions: ', x.shape, z.shape, y.shape)
-    for idx in range(y.shape[1]):
-        print(np.mean(y[:,idx]), np.std(y[:, idx]))
+    #Transformation Functions
+    g = np.random.rand(data_dim, num_tasks)
     
-    base_dir= 'data/datasets/'
-    if not os.path.exists(base_dir):
-        os.makedirs(base_dir) 
+    for data_case in ['train', 'val', 'test']:
 
-    f= base_dir+ 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' + data_case + '_' + 'x' + '.npy'
-    np.save(f, x)
+        print('')
+        print('Data Case: ', data_case)
 
-    f= base_dir+ 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' + data_case + '_' + 'z' + '.npy'
-    np.save(f, z)
+        if data_case == 'train':
+            dataset_size= args.train_size
+        if data_case == 'val':
+            dataset_size= int(args.train_size/4)
+        elif data_case == 'test':
+            dataset_size= args.test_size    
 
-    f= base_dir+ 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' + data_case + '_' + 'y' + '.npy'
-    np.save(f, y)
+        z= np.zeros((dataset_size, data_dim))
+        for i in range(data_dim):
+            z[:, i]= np.random.laplace(0, 1, dataset_size)
+    #     z= np.random.multivariate_normal(np.zeros(data_dim), np.eye(data_dim), dataset_size)
 
-    base_dir= 'plots/'
-    plt.scatter(x[:, 0], x[:, 1])
-    plt.savefig(base_dir + 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' +  data_case +  '_x' + '.png')
-    plt.clf()
+        print('Latent Z')
+        print(np.mean(z[0,:]), np.var(z[0,:]))
+
+        with torch.no_grad():
+            x= rep_net( torch.Tensor(z) ).detach().cpu().numpy()
+
+        print('Data X SVD')
+        print( np.linalg.svd( np.matmul(x.T, x) )[1] )
+
+        y= 50*np.matmul(z, g)/math.sqrt(data_dim) + np.random.multivariate_normal(np.zeros(num_tasks), np.eye(num_tasks), dataset_size)
+
+        print('Data Dimensions: ', x.shape, z.shape, y.shape)
+        print('Label y')
+        for idx in range(y.shape[1]):
+            print(np.mean(y[:,idx]), np.std(y[:, idx]))
+
+        base_dir= 'data/datasets/'
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir) 
+
+        f= base_dir+ 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' + data_case + '_' + 'x' + '.npy'
+        np.save(f, x)
+
+        f= base_dir+ 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' + data_case + '_' + 'z' + '.npy'
+        np.save(f, z)
+
+        f= base_dir+ 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' + data_case + '_' + 'y' + '.npy'
+        np.save(f, y)
+
+        base_dir= 'plots/'
+        plt.scatter(x[:, 0], x[:, 1])
+        plt.savefig(base_dir + 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' +  data_case +  '_x' + '.png')
+        plt.clf()

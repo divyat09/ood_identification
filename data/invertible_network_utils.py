@@ -6,7 +6,7 @@ from torch import nn
 from scipy.stats import ortho_group
 from typing import Union
 from typing_extensions import Literal
-import encoders
+import utils.encoders as encoders
 
 
 __all__ = ["construct_invertible_flow", "construct_invertible_mlp"]
