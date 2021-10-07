@@ -1,10 +1,9 @@
 import os
 import argparse
 
-data_dim_list= [2, 8, 32, 64, 128]
+data_dim_list= [2, 8, 32, 64]
 num_tasks_list= [1, 2, 4, 8]
-# num_layers_list= [2, 3, 4, 5]
-num_layers_list= [3, 4, 5]
+num_layers_list= [2, 3, 4, 5]
 
 
 # Input Parsing

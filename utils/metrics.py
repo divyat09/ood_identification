@@ -6,6 +6,7 @@ from sklearn.linear_model import LinearRegression
 def get_ica_sources(pred_z, ica_transform):
     return ica_transform.transform(pred_z)
 
+
 def linear_regression_approx(x, y, fit_intercept=False):
     reg= LinearRegression(fit_intercept= fit_intercept).fit(x, y)
     return reg.predict(x)

@@ -23,14 +23,6 @@ from algorithms.erm import ERM
 from utils.metrics import *
 
 
-def compute_rmse(pred_z, z):
-    print(np.std(z))
-    z= (z - np.mean(z))/ np.std(z)
-    pred_z= (pred_z - np.mean(pred_z))/ np.std(pred_z)
-        
-    print(np.sqrt( np.mean((z - pred_z)**2)) )    
-
-
 # Input Parsing
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dim', type=int, default= 2,
@@ -127,49 +119,81 @@ for seed in range(1, 1+num_seeds):
         res[key]= []
     res[key].append(r2)    
     
-    #Latent Prediction Error
-    rmse,r2= get_latent_prediction_error(pred_z, true_z)   
-    
-    key= 'latent_pred_rmse'
-    if key not in res.keys():
-        res[key]=[]
-    res[key].append(rmse)
 
-    key= 'latent_pred_r2'
-    if key not in res.keys():
-        res[key]=[]
-    res[key].append(r2)
+    # Sanity Check 1 (Lowest Error using true_z) 
+    print('')
+    rmse,r2= get_label_prediction_error_ica(true_z, true_y)
     
-    
-    #ICA Transformation
-    method.train_ica()
-    ica_z= get_ica_sources(pred_z, method.ica_transform) 
-    
-    #Label Prediction Error with ICA
-    rmse,r2= get_label_prediction_error_ica(ica_z, true_y)    
-    
-    key= 'target_ica_pred_rmse'
+    key= 'target_pred_rmse_oracle'
     if key not in res.keys():
         res[key]= []
     res[key].append(rmse)
     
-    key= 'target_ica_pred_r2'
+    key= 'target_pred_r2_oracle'
+    if key not in res.keys():
+        res[key]= []
+    res[key].append(r2)    
+
+    
+    
+    # Sanity Check 2 (Improvement with fine-tuning)
+    print('')
+    rmse,r2= get_label_prediction_error_ica(pred_z, true_y)
+    
+    key= 'target_pred_rmse_imp'
+    if key not in res.keys():
+        res[key]= []
+    res[key].append(rmse)
+    
+    key= 'target_pred_r2_imp'
     if key not in res.keys():
         res[key]= []
     res[key].append(r2)    
     
-    #Latent Prediction Error with ICA
-    rmse,r2= get_latent_prediction_error(ica_z, true_z) 
+    # #Latent Prediction Error
+    # rmse,r2= get_latent_prediction_error(pred_z, true_z)   
     
-    key= 'latent_ica_pred_rmse'
-    if key not in res.keys():
-        res[key]=[]
-    res[key].append(rmse)
+    # key= 'latent_pred_rmse'
+    # if key not in res.keys():
+    #     res[key]=[]
+    # res[key].append(rmse)
 
-    key= 'latent_ica_pred_r2'
-    if key not in res.keys():
-        res[key]=[]
-    res[key].append(r2)
+    # key= 'latent_pred_r2'
+    # if key not in res.keys():
+    #     res[key]=[]
+    # res[key].append(r2)
+    
+    
+    # #ICA Transformation
+    # method.train_ica()
+    # ica_z= get_ica_sources(pred_z, method.ica_transform)
+    # # ica_z= 0*ica_z
+    
+    # #Label Prediction Error with ICA
+    # rmse,r2= get_label_prediction_error_ica(ica_z, true_y)    
+    
+    # key= 'target_ica_pred_rmse'
+    # if key not in res.keys():
+    #     res[key]= []
+    # res[key].append(rmse)
+    
+    # key= 'target_ica_pred_r2'
+    # if key not in res.keys():
+    #     res[key]= []
+    # res[key].append(r2)    
+    
+    # #Latent Prediction Error with ICA
+    # rmse,r2= get_latent_prediction_error(ica_z, true_z) 
+    
+    # key= 'latent_ica_pred_rmse'
+    # if key not in res.keys():
+    #     res[key]=[]
+    # res[key].append(rmse)
+
+    # key= 'latent_ica_pred_r2'
+    # if key not in res.keys():
+    #     res[key]=[]
+    # res[key].append(r2)
         
     # Plotting RMSE values in label prediction
     for idx in range(true_y.shape[1]):
@@ -179,8 +203,6 @@ for seed in range(1, 1+num_seeds):
         plt.savefig('plots/test_res_' + 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_seed_' + str(seed) + '_' + str(idx) + '.png')
         plt.clf()
     
-    reg_z= linear_regression_approx(true_z, pred_z)
-    pred_err= np.sqrt( np.mean( (true_z - reg_z)**2 ) )
 
 
 print('Final Results')

@@ -18,7 +18,9 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
-from invertible_network_utils import *
+path= os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(path)
+from utils.invertible_network_utils import *
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -27,7 +29,7 @@ def sigmoid(x):
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dim', type=int, default=2, 
                     help='')
-parser.add_argument('--num_tasks_list', nargs='+', type=int, default=[1, 2, 4, 8], 
+parser.add_argument('--num_tasks_list', nargs='+', type=int, default=[1, 8, 32, 64, 128], 
                     help='')
 parser.add_argument('--train_size', type=int, default=5000, 
                     help='')
@@ -95,7 +97,7 @@ for num_tasks in num_tasks_list:
         print('Data X SVD')
         print( np.linalg.svd( np.matmul(x.T, x) )[1] )
 
-        y= 50*np.matmul(z, g)/math.sqrt(data_dim) + np.random.multivariate_normal(np.zeros(num_tasks), np.eye(num_tasks), dataset_size)
+        y= 50*np.matmul(z, g)/math.sqrt(data_dim) + np.random.multivariate_normal(np.zeros(num_tasks), 10*np.eye(num_tasks), dataset_size)
 
         print('Data Dimensions: ', x.shape, z.shape, y.shape)
         print('Label y')
