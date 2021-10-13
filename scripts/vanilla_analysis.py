@@ -1,10 +1,13 @@
 import os
 import argparse
 
-data_dim_list= [2, 8, 32, 64]
-num_tasks_list= [1, 2, 4, 8]
-num_layers_list= [2, 3, 4, 5]
+# data_dim_list= [2, 8, 32, 64, 128]
+# num_tasks_list= [1, 8, 32, 64]
+# num_layers_list= [2, 3, 4]
 
+data_dim_list= [2, 4, 8, 16]
+num_tasks_list= [2, 4, 8, 16]
+num_layers_list= [2]
 
 # Input Parsing
 parser = argparse.ArgumentParser()
@@ -12,19 +15,24 @@ parser.add_argument('--latent_pred_task', type=int, default=0,
                     help='')
 parser.add_argument('--invertible_model', type=int, default=0,
                    help='')
+parser.add_argument('--final_task', type=int, default=0,
+                   help='')
+parser.add_argument('--train_model', type=int, default=0,
+                   help='')
+parser.add_argument('--data_dir', type=str, default='clf_non_linear_dgp_uniform',
+                   help='')
 
 args = parser.parse_args()
 latent_pred_task= args.latent_pred_task
 invertible_model= args.invertible_model
+final_task= args.final_task
+train_model= args.train_model
 
-base_script= 'python3 train.py --num_seeds 3  --lr 0.001 --batch_size 32 --num_epochs 100'
+base_script= 'python3 train.py --num_seeds 3  --lr 0.01 --batch_size 512 --num_epochs 300'
+# base_script= 'python3 train.py --num_seeds 3  --lr 0.001 --batch_size 32 --num_epochs 100'
 
-if latent_pred_task:
-    base_script = base_script + ' --latent_pred_task 1 '
+base_script= base_script + ' --data_dir ' + str(args.data_dir) + ' --train_model ' + str(train_model) + ' --final_task ' + str(final_task) + ' --invertible_model ' + str(invertible_model) + ' --latent_pred_task ' + str(latent_pred_task)
 
-if invertible_model:
-    base_script= base_script + ' --invertible_model 1 '
-    
 for num_layers in num_layers_list:
     
     if invertible_model:
@@ -37,6 +45,9 @@ for num_layers in num_layers_list:
     
     for data_dim in data_dim_list:
         for num_tasks in num_tasks_list:
+            
+            print('Data Dim: ', data_dim, ' Num Tasks: ', num_tasks)
+            
             script= base_script + ' --num_tasks ' + str(num_tasks) + ' --data_dim ' + str(data_dim) + ' --num_layers ' + str(num_layers)
 
             if latent_pred_task:

@@ -6,8 +6,8 @@ import torch.utils.data as data_utils
 from torchvision import datasets, transforms
 
 class BaseDataLoader(data_utils.Dataset):
-    def __init__(self, data_case='train', data_dim=32, num_tasks=1):
-        self.data_dir = 'data/datasets/'
+    def __init__(self, data_dir, data_case='train', data_dim=32, num_tasks=1):
+        self.data_dir = 'data/datasets/' + data_dir + '/'
         self.data_case = data_case
         self.num_tasks = num_tasks
         self.data_dim = data_dim

@@ -81,11 +81,10 @@ print(rep_net)
 for num_tasks in num_tasks_list:
     
     #Transformation Functions
-#     g = np.random.rand(data_dim, num_tasks)    
-#     g= np.zeros((data_dim, num_tasks))
-#     for idx in range(num_tasks):    
-#         g[:, idx]= np.random.uniform(low=0, high=2, size=data_dim)    
-    g= np.random.multivariate_normal(np.zeros(data_dim), np.eye(data_dim), size=num_tasks).T
+    g = np.random.rand(data_dim, num_tasks)
+    
+    # Sample orthonormal matrices (scipy.ortho)
+    
     for data_case in ['train', 'val', 'test']:
 
         print('')
@@ -103,7 +102,7 @@ for num_tasks in num_tasks_list:
             if args.latent_case == 'laplace':
                 z[:, i]= np.random.laplace(0, 1, dataset_size)
             elif args.latent_case == 'uniform':
-                z[:, i]= np.random.uniform(low=0, high=1, size=dataset_size)
+                z[:, i]= np.random.uniform(low=-1, high=1, size=dataset_size)
     #     z= np.random.multivariate_normal(np.zeros(data_dim), np.eye(data_dim), dataset_size)
     
 
@@ -116,13 +115,20 @@ for num_tasks in num_tasks_list:
 #         print('Data X SVD')
 #         print( np.linalg.svd( np.matmul(x.T, x) )[1] )
 
-        y= 50*np.matmul(z, g)/math.sqrt(data_dim) + np.random.multivariate_normal(np.zeros(num_tasks), np.eye(num_tasks), dataset_size)
+        y= 50*np.matmul(z, g)/math.sqrt(data_dim)
+        prob= np.exp(y)
+        scale_factor= np.sum( prob, axis=1 )
+        scale_factor= np.reshape(scale_factor,  (y.shape[0], 1))
+        prob= prob/scale_factor
         
-
+        labels=np.zeros(y.shape[0])
+        for idx in range(y.shape[0]):
+            labels[idx]= np.argmax(np.random.multinomial(1, prob[idx] ))
+            
         print('Data Dimensions: ', x.shape, z.shape, y.shape)
         print('Label y')
-        print('Variance in Y')
-        print( np.var(y- 50*np.matmul(z, g)/math.sqrt(data_dim))  )
+        print('Class Imbalance in Y')
+        print(np.unique(labels, return_counts=True))
 #         for idx in range(y.shape[1]):
 #             print(np.mean(y[:,idx]), np.std(y[:, idx]))
         
@@ -143,7 +149,7 @@ for num_tasks in num_tasks_list:
         np.save(f, z)
 
         f= base_dir+ 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' + data_case + '_' + 'y' + '.npy'
-        np.save(f, y)
+        np.save(f, labels)
 
         base_dir= 'plots/'
         plt.scatter(x[:, 0], x[:, 1])
