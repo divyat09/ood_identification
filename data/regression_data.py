@@ -34,9 +34,9 @@ parser.add_argument('--data_dim', type=int, default=2,
                     help='')
 parser.add_argument('--num_tasks_list', nargs='+', type=int, default=[1, 8, 32, 64, 128], 
                     help='')
-parser.add_argument('--train_size', type=int, default=5000, 
+parser.add_argument('--train_size', type=int, default=5000,
                     help='')
-parser.add_argument('--test_size', type=int, default=1000, 
+parser.add_argument('--test_size', type=int, default=5000,
                     help='')
 parser.add_argument('--linear_dgp', type=int, default=0,
                     help='')
@@ -101,11 +101,12 @@ for num_tasks in num_tasks_list:
         z= np.zeros((dataset_size, data_dim))
         for i in range(data_dim):
             if args.latent_case == 'laplace':
-                z[:, i]= np.random.laplace(0, 1, dataset_size)
+                z[:, i]= np.random.laplace(10, 5, dataset_size)
             elif args.latent_case == 'uniform':
                 z[:, i]= np.random.uniform(low=0, high=1, size=dataset_size)
-    #     z= np.random.multivariate_normal(np.zeros(data_dim), np.eye(data_dim), dataset_size)
-    
+            elif args.latent_case == 'uniform_discrete':
+                z[:, i]= np.random.randint(2, size= dataset_size)
+    #     z= np.random.multivariate_normal(np.zeros(data_dim), np.eye(data_dim), dataset_size)    
 
         print('Latent Z')
         print(np.mean(z[0,:]), np.var(z[0,:]))
@@ -116,8 +117,7 @@ for num_tasks in num_tasks_list:
 #         print('Data X SVD')
 #         print( np.linalg.svd( np.matmul(x.T, x) )[1] )
 
-        y= 50*np.matmul(z, g)/math.sqrt(data_dim) + np.random.multivariate_normal(np.zeros(num_tasks), np.eye(num_tasks), dataset_size)
-        
+        y= 50*np.matmul(z, g)/math.sqrt(data_dim) + np.random.multivariate_normal(np.zeros(num_tasks), np.eye(num_tasks), dataset_size)        
 
         print('Data Dimensions: ', x.shape, z.shape, y.shape)
         print('Label y')

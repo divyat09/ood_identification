@@ -1,1 +1,12 @@
+data/.ipynb_checkpoints
+utils/.ipynb_checkpoints
+models/.ipynb_checkpoints
+notebooks/.ipynb_checkpoints
+scripts/.ipynb_checkpoints
+algorithms/.ipynb_checkpoints
+data/.ipynb_checkpoints/
+
+results/
 data/datasets/
+plots/
+plots_final/

@@ -26,9 +26,9 @@ class FC(torch.nn.Module):
         
         
     def forward(self, x):        
-        out= self.rep_net(x)
-        out= self.fc_net(out)
-        return out
+        z= self.rep_net(x)
+        out= self.fc_net(z)
+        return out, z
 
     def get_representation_network(self):
     

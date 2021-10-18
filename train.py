@@ -50,8 +50,14 @@ parser.add_argument('--data_dir', type=str, default='non_linear',
                    help='')
 parser.add_argument('--inv_reg', type=float, default=1.0,
                    help='Regularizer lambda for invertible model loss: MSE + lambda*Gen_Loss')
+parser.add_argument('--lambda', type=float, default=1.0,
+                   help='Regularizer lambda for learning ICA: MSE + lambda*ICA_Loss')
 parser.add_argument('--final_task', type=int, default=0,
                    help='0: regression; 1: classification')
+parser.add_argument('--train_ica', type=int, default=0,
+                   help='')
+parser.add_argument('--ica_start', type=int, default=20,
+                   help='')
 parser.add_argument('--train_model', type=int, default=1,
                    help='0: evaluation; 1: training & evaluation')
 
@@ -140,18 +146,22 @@ for seed in range(1, 1+num_seeds):
         if key not in res.keys():
             res[key]= []
         res[key].append(r2)
-    
-    #Latent Covariance Matrix
-    score= get_cross_correlation(pred_z, true_z)    
-    key= 'latent_pred_score'
-    if key not in res.keys():
-        res[key]= []
-    res[key].append(score)
-    
+        
     #ICA Transformation
     method.train_ica()
     ica_z= get_ica_sources(pred_z, method.ica_transform)
 
+    #PCA Transformation
+    method.train_pca()
+    pca_z= get_pca_sources(pred_z, method.pca_transform)
+    
+    np.save( 'pred_z_tr.npy', pred_z['tr'] )
+    np.save( 'pred_z_te.npy', pred_z['te'] )
+    
+    np.save( 'ica_z_tr.npy', ica_z['tr'] )    
+    np.save( 'ica_z_te.npy', ica_z['te'] )    
+    
+#     sys.exit(-1)
     
     #Label Prediction Error with ICA
     if final_task:
@@ -173,6 +183,14 @@ for seed in range(1, 1+num_seeds):
         if key not in res.keys():
             res[key]= []
         res[key].append(r2)
+
+        
+    #Latent Covariance Matrix
+    score= get_cross_correlation(pred_z, true_z)    
+    key= 'latent_pred_score'
+    if key not in res.keys():
+        res[key]= []
+    res[key].append(score)
     
     
     #Latent-ICA Covariance Matrix
@@ -182,8 +200,27 @@ for seed in range(1, 1+num_seeds):
     if key not in res.keys():
         res[key]= []
     res[key].append(score)
+
     
+    #Latent-PCA Covariance Matrix
+    score= get_cross_correlation(pca_z, true_z)
+    print(score)
+    key= 'pca_latent_pred_score'
+    if key not in res.keys():
+        res[key]= []
+    res[key].append(score)
+
     
+#     get_mi_score(pred_z, pred_z)    
+#     get_mi_score(ica_z, ica_z)
+#     get_mi_score(pca_z, pca_z)    
+    
+#     #First Order Independence Score
+#     get_independence_score(pred_z, pred_z)    
+#     get_independence_score(ica_z, ica_z)
+#     get_independence_score(pca_z, pca_z)    
+
+
     #Debug ICA
     #ICA on data itself
 #     true_x, true_z= get_predictions_check(train_dataset, test_dataset)

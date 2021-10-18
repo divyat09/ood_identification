@@ -4,6 +4,11 @@ from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
 from scipy.optimize import linear_sum_assignment
+from sklearn.feature_selection import mutual_info_regression
+
+def get_pca_sources(pred_z, pca_transform):
+    
+    return { 'tr': pca_transform.transform(pred_z['tr']), 'te': pca_transform.transform(pred_z['te']) }    
 
 def get_ica_sources(pred_z, ica_transform):
     
@@ -72,7 +77,8 @@ def get_predictions(model, train_dataset, test_dataset, invertible_model):
                     out, _, _= model(x)
                     pred_y[key].append(out)                    
                 else:
-                    pred_y[key].append(model(x))
+                    out, _= model(x)
+                    pred_y[key].append(out)
 
         true_z[key]= torch.cat(true_z[key]).detach().numpy()
         pred_z[key]= torch.cat(pred_z[key]).detach().numpy()
@@ -107,7 +113,7 @@ def get_indirect_prediction_error(pred_latent, true_score, case='test', final_ta
         key= 'te'
         
     if final_task:
-        clf= LogisticRegression( class_weight='balanced', multi_class='multinomial').fit(pred_latent['tr'], true_score['tr'])
+        clf= LogisticRegression(multi_class='multinomial', penalty='none').fit(pred_latent['tr'], true_score['tr'])
         pred_score= clf.predict(pred_latent[key])
         res= 100*np.sum( pred_score == true_score[key] )/true_score[key].shape[0]
     else:
@@ -116,6 +122,45 @@ def get_indirect_prediction_error(pred_latent, true_score, case='test', final_ta
         res= np.sqrt(np.mean((true_score[key] - pred_score)**2)), r2_score(true_score[key], pred_score)    
     
     return res
+
+    
+def get_mi_score(pred_latent, true_latent, case='test'):
+    
+    if case == 'train':
+        key= 'tr'
+    elif case == 'test':
+        key= 'te'
+    
+    n= pred_latent[key].shape[0]
+    dim= pred_latent[key].shape[1]
+    mutual_info= 0.0
+    for i in range(dim):
+        for j in range(dim):
+            if i != j:
+                mutual_info+= mutual_info_regression( np.reshape( pred_latent[key][:, i], (n, 1) ), true_latent[key][:, j] )
+    
+    print('Mutual Information')
+    print(mutual_info/(dim**2 - dim))
+    return 
+
+    
+def get_independence_score(pred_latent, true_latent, case='test'):
+    
+    if case == 'train':
+        key= 'tr'
+    elif case == 'test':
+        key= 'te'
+    
+    dim= pred_latent[key].shape[1]
+    cross_corr= np.zeros((dim, dim))
+    for i in range(dim):
+        for j in range(dim):
+            cross_corr[i,j]= (np.cov( pred_latent[key][:,i], true_latent[key][:,j] )[0,1]) / ( np.std(pred_latent[key][:,i])*np.std(true_latent[key][:,j]) )
+    
+    print('Independence Score')
+    print(cross_corr)
+    print(np.linalg.norm( cross_corr - np.eye(dim),  ord='fro'))
+    return 
 
 def get_cross_correlation(pred_latent, true_latent, case='test'):
     
@@ -132,4 +177,8 @@ def get_cross_correlation(pred_latent, true_latent, case='test'):
     
     cost= -1*np.abs(cross_corr)
     row_ind, col_ind= linear_sum_assignment(cost)
-    return -1*cost[row_ind, col_ind].sum()
+    
+#     score= 100*np.sum( -1*cost[row_ind, col_ind].sum() )/(dim)
+    score= 100*np.sum( -1*cost[row_ind, col_ind] > 0.80 )/(dim)
+    
+    return score

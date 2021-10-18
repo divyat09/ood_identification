@@ -11,6 +11,7 @@ from torchvision.utils import save_image
 from torch.autograd import Variable
 
 from sklearn.decomposition import FastICA
+from sklearn.decomposition import PCA
 from utils.metrics import *
 
 from models.fc_regression import FC
@@ -54,8 +55,11 @@ class ERM():
             os.makedirs(self.res_dir) 
             
         self.opt, self.scheduler= self.get_optimizer(self.args.lr, self.args.weight_decay)  
-                
-        self.ica_transform= FastICA()
+        
+        self.pca_transform= PCA()
+        
+        self.ica_transform= FastICA(max_iter=30000)
+        self.ica_fitted= 0
         
         if self.latent_pred_task:
             self.save_path= self.res_dir + 'num_tasks_' + str(self.args.num_tasks) + '_data_dim_' + str(self.args.data_dim) + '_latent_prediction_task.pth'
@@ -81,7 +85,7 @@ class ERM():
         
         self.model.load_state_dict(torch.load(self.save_path))
         self.model.eval()
-        return
+        return        
     
     def validation(self):
         
@@ -100,7 +104,7 @@ class ERM():
                     if self.args.invertible_model:
                         out, z_pred, logdet= self.model(x)
                     else:
-                        out= self.model(x)
+                        out, z_pred= self.model(x)
                     
                 if self.args.final_task:
                     loss= self.clf_loss(out, y.long())
@@ -123,9 +127,20 @@ class ERM():
             train_acc= 0.0
             train_size=0
             count=0
+            train_fast_ica= 0
             
             if epoch ==0 and count ==0:
                 self.save_model()
+            
+            if epoch == self.args.ica_start:
+                train_fast_ica= 1
+            
+            if train_fast_ica and self.args.train_ica:
+                self.train_ica()
+                train_fast_ica= 0
+            
+            if epoch!=0 and epoch%50==0 and self.args.train_ica:
+                self.train_ica()                
                 
             self.model.eval()        
             true_y, pred_y, true_z, pred_z= get_predictions(self.model, self.train_dataset, self.test_dataset, self.args.invertible_model)       
@@ -135,6 +150,9 @@ class ERM():
             else:
                 rmse,r2= get_direct_prediction_error(pred_y, true_y)
                 print('Label Prediction Test: ', rmse, r2)
+            
+            score= get_cross_correlation(pred_z, true_z)    
+            print('MCC Score with NN representation', score)
             self.model.train()
 
             for batch_idx, (x, y, z) in enumerate(self.train_dataset):
@@ -149,7 +167,7 @@ class ERM():
                         x_pred, _= self.model.inverse(z_pred)
 #                         gen_loss = torch.log(z_pred.new_tensor([2*math.pi])) + torch.mean(torch.sum(0.5*z_pred**2, -1) - logdet)
                     else:
-                        out= self.model(x)
+                        out, z_pred= self.model(x)
 
                     if self.args.final_task:
                         loss= self.clf_loss(out, y.long())
@@ -158,6 +176,14 @@ class ERM():
                         loss= torch.mean(torch.abs(out-y))
 #                         loss= torch.mean(((out-y)**2))                        
                 
+                if epoch > self.args.ica_start and self.args.train_ica:
+                    
+                    pred_ica= z_pred.detach().numpy()
+                    true_ica= self.ica_transform.transform(pred_ica)
+                    true_ica= torch.tensor(true_ica).float()
+                    
+                    loss+= 0.1 * torch.mean(torch.sum( (true_ica - z_pred)**2, dim=1 ))
+    
                 #Backward Pass
                 loss.backward()
                 
@@ -179,35 +205,48 @@ class ERM():
             print('\n')
             print('Done Training for Epoch: ', epoch)
             print('Loss: ', train_loss/count) 
+            if epoch > self.args.ica_start and self.args.train_ica:
+                print('ICA Loss for a random batch: ', torch.mean(torch.sum( (true_ica - z_pred)**2, dim=1 )))
             if self.args.final_task:
                 print('Acc: ', 100*train_acc/train_size)
             print('Best Epoch: ', best_epoch)            
 #             print(torch.mean(x_pred-x))            
             
             self.scheduler.step()     
-            print(self.scheduler.get_last_lr())
-                        
-#             rmse,r2= get_indirect_prediction_error(pred_z, true_z, case='train')   
-#             print('Latent Prediction Train: ', rmse, r2)            
-
-#             rmse,r2= get_indirect_prediction_error(pred_z, true_z)   
-#             print('Latent Prediction Test: ', rmse, r2)            
-#             self.model.train()
-            
-#             self.train_ica()
-#             ica_z= get_ica_sources(pred_z, self.ica_transform)
-
-#             rmse,r2= get_indirect_prediction_error(ica_z, true_z, case='train')   
-#             print('Latent Prediction ICA Train: ', rmse, r2)            
-
-#             rmse,r2= get_indirect_prediction_error(ica_z, true_z)   
-#             print('Latent Prediction ICA Test: ', rmse, r2)            
-            
+            print(self.scheduler.get_last_lr())            
             
         return
         
+    def init_ica(self):
+        
+        if self.ica_fitted:        
+            self.ica_transform= FastICA(max_iter=10, w_init= self.ica_transform.components_)
+        else:
+            print('*************')
+            self.ica_transform= FastICA(max_iter=10, whiten=True)
+
+    def train_pca(self):
+                
+        # Load the weights of the trained model
+        self.load_model()        
+
+        pred_z= []
+        for batch_idx, (x, y, z) in enumerate(self.train_dataset):
+            pred_z.append(self.model.rep_net(x))
+
+        pred_z= torch.cat(pred_z).detach().numpy()
+        
+        # PCA Transformation                
+        self.pca_transform.fit(pred_z)       
+        
+        return
+            
     def train_ica(self):
         
+        print('Training Fast ICA')
+        
+#         self.init_ica()
+
         # Load the weights of the trained model
         self.load_model()        
 
@@ -220,11 +259,13 @@ class ERM():
         # ICA Transformation                
         self.ica_transform.fit(pred_z)
         
+        if self.ica_fitted == 0:
+            self.ica_fitted= 1
+        
         return
 
-    
     def train_ica_check(self):
-        
+                
         pred_z= []
         for batch_idx, (x, y, z) in enumerate(self.train_dataset):
             pred_z.append(x)

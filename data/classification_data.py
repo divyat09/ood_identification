@@ -19,7 +19,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 
 from sklearn.linear_model import LinearRegression
-
+from scipy.stats import ortho_group
 
 path= os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(path)
@@ -28,15 +28,18 @@ from utils.invertible_network_utils import *
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
+
+# Prob ~ Dirichlet(g_i*z) [Class Imbalance] better than Prob ~ Softmax(g_i*z)
+
 # Input Parsing
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dim', type=int, default=2, 
                     help='')
 parser.add_argument('--num_tasks_list', nargs='+', type=int, default=[1, 8, 32, 64, 128], 
                     help='')
-parser.add_argument('--train_size', type=int, default=5000, 
+parser.add_argument('--train_size', type=int, default=20000, 
                     help='')
-parser.add_argument('--test_size', type=int, default=1000, 
+parser.add_argument('--test_size', type=int, default=5000, 
                     help='')
 parser.add_argument('--linear_dgp', type=int, default=0,
                     help='')
@@ -82,7 +85,8 @@ for num_tasks in num_tasks_list:
     
     #Transformation Functions
     g = np.random.rand(data_dim, num_tasks)
-    
+#     g= np.random.multivariate_normal(np.zeros(data_dim), np.eye(data_dim), size=num_tasks).T
+#     g= ortho_group.rvs(data_dim)[:, :num_tasks]
     # Sample orthonormal matrices (scipy.ortho)
     
     for data_case in ['train', 'val', 'test']:
@@ -114,16 +118,22 @@ for num_tasks in num_tasks_list:
 
 #         print('Data X SVD')
 #         print( np.linalg.svd( np.matmul(x.T, x) )[1] )
-
+        
+        tau=20
         y= 50*np.matmul(z, g)/math.sqrt(data_dim)
-        prob= np.exp(y)
-        scale_factor= np.sum( prob, axis=1 )
+        y= y - np.reshape( np.max(y, axis=1), (y.shape[0],1))
+        prob= np.exp(y*tau)
+        scale_factor= np.sum(prob, axis=1)
         scale_factor= np.reshape(scale_factor,  (y.shape[0], 1))
         prob= prob/scale_factor
         
+#         prob= np.zeros((y.shape[0], y.shape[1]))
+#         for idx in range(y.shape[0]):
+#             prob[idx]= np.random.dirichlet(np.abs(y)[idx,:], 1)
+        
         labels=np.zeros(y.shape[0])
         for idx in range(y.shape[0]):
-            labels[idx]= np.argmax(np.random.multinomial(1, prob[idx] ))
+            labels[idx]= np.argmax(np.random.multinomial(1, prob[idx]))
             
         print('Data Dimensions: ', x.shape, z.shape, y.shape)
         print('Label y')
