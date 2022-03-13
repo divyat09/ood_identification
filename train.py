@@ -60,6 +60,8 @@ parser.add_argument('--ica_start', type=int, default=20,
                    help='')
 parser.add_argument('--train_model', type=int, default=1,
                    help='0: evaluation; 1: training & evaluation')
+parser.add_argument('--debug_ica', type=int, default=0,
+                   help='')
 
 args = parser.parse_args()
 batch_size= args.batch_size
@@ -96,13 +98,31 @@ for seed in range(1, 1+num_seeds):
     
     #Load Algorithm
     method= ERM(args, train_dataset, val_dataset, test_dataset)
+    
+    #Debug ICA
+    if args.debug_ica:
         
+        true_x, true_z= get_predictions_check(train_dataset, test_dataset)
+        method.train_ica_check()
+        ica_x= get_ica_sources(true_x, method.ica_transform)    
+        
+        score= get_cross_correlation(true_x, true_z)
+        print(score)
+        
+        score= get_cross_correlation(ica_x, true_z)
+        print(score)
+        
+        np.save( 'ica_x_tr.npy', ica_x['tr'] )    
+        np.save( 'ica_x_te.npy', ica_x['te'] )    
+        
+        continue
+    
     #Training
     if train_model:
         method.train()
-        
+                
     #Test
-    method.load_model()
+    method.load_model()    
     
     # When the task is to predict z from x
     if args.latent_pred_task:
@@ -154,6 +174,10 @@ for seed in range(1, 1+num_seeds):
     #PCA Transformation
     method.train_pca()
     pca_z= get_pca_sources(pred_z, method.pca_transform)
+
+    
+    np.save( 'true_z_tr.npy', true_z['tr'] )
+    np.save( 'true_z_te.npy', true_z['te'] )
     
     np.save( 'pred_z_tr.npy', pred_z['tr'] )
     np.save( 'pred_z_te.npy', pred_z['te'] )
@@ -161,8 +185,7 @@ for seed in range(1, 1+num_seeds):
     np.save( 'ica_z_tr.npy', ica_z['tr'] )    
     np.save( 'ica_z_te.npy', ica_z['te'] )    
     
-#     sys.exit(-1)
-    
+
     #Label Prediction Error with ICA
     if final_task:
         acc= get_indirect_prediction_error(ica_z, true_y, final_task= 1)  
@@ -184,6 +207,28 @@ for seed in range(1, 1+num_seeds):
             res[key]= []
         res[key].append(r2)
 
+        
+    #Label Prediction Error with PCA
+    if final_task:
+        acc= get_indirect_prediction_error(pca_z, true_y, final_task= 1)  
+        
+        key= 'target_pca_pred_acc'
+        if key not in res.keys():
+            res[key]= []
+        res[key].append(acc)        
+        
+    else:
+        rmse,r2= get_indirect_prediction_error(pca_z, true_y)       
+        key= 'target_pca_pred_rmse'
+        if key not in res.keys():
+            res[key]= []
+        res[key].append(rmse)
+        
+        key= 'target_pca_pred_r2'
+        if key not in res.keys():
+            res[key]= []
+        res[key].append(r2)
+        
         
     #Latent Covariance Matrix
     score= get_cross_correlation(pred_z, true_z)    
@@ -221,96 +266,6 @@ for seed in range(1, 1+num_seeds):
 #     get_independence_score(pca_z, pca_z)    
 
 
-    #Debug ICA
-    #ICA on data itself
-#     true_x, true_z= get_predictions_check(train_dataset, test_dataset)
-#     score= get_cross_correlation(true_x, true_z)
-#     print(score)
-#     key= 'latent_pred_score_check'
-#     if key not in res.keys():
-#         res[key]= []
-#     res[key].append(score)
-    
-    
-#     method.train_ica_check()
-#     ica_x= get_ica_sources(true_x, method.ica_transform)   
-#     score= get_cross_correlation(ica_x, true_z)    
-#     print(score)   
-#     key= 'ica_latent_pred_score_check'
-#     if key not in res.keys():
-#         res[key]= []
-#     res[key].append(score)
-    
-
-#     # Sanity Check 1 (Lowest Error using true_z) 
-#     print('')
-#     rmse,r2= get_indirect_prediction_error(true_z, true_y)
-    
-#     key= 'target_pred_rmse_oracle'
-#     if key not in res.keys():
-#         res[key]= []
-#     res[key].append(rmse)
-    
-#     key= 'target_pred_r2_oracle'
-#     if key not in res.keys():
-#         res[key]= []
-#     res[key].append(r2)    
-
-    
-    
-#     # Sanity Check 2 (Improvement with fine-tuning)
-#     print('')
-#     rmse,r2= get_indirect_prediction_error(pred_z, true_y)
-    
-#     key= 'target_pred_rmse_imp'
-#     if key not in res.keys():
-#         res[key]= []
-#     res[key].append(rmse)
-    
-#     key= 'target_pred_r2_imp'
-#     if key not in res.keys():
-#         res[key]= []
-#     res[key].append(r2)    
-    
-#     #Latent Prediction Error
-#     rmse,r2= get_indirect_prediction_error(pred_z, true_z)   
-    
-#     key= 'latent_pred_rmse'
-#     if key not in res.keys():
-#         res[key]=[]
-#     res[key].append(rmse)
-
-#     key= 'latent_pred_r2'
-#     if key not in res.keys():
-#         res[key]=[]
-#     res[key].append(r2)    
-    
-#     #Label Prediction Error with ICA
-#     rmse,r2= get_indirect_prediction_error(ica_z, true_y)    
-    
-#     key= 'target_ica_pred_rmse'
-#     if key not in res.keys():
-#         res[key]= []
-#     res[key].append(rmse)
-    
-#     key= 'target_ica_pred_r2'
-#     if key not in res.keys():
-#         res[key]= []
-#     res[key].append(r2)    
-    
-#     #Latent Prediction Error with ICA
-#     rmse,r2= get_indirect_prediction_error(ica_z, true_z) 
-    
-#     key= 'latent_ica_pred_rmse'
-#     if key not in res.keys():
-#         res[key]=[]
-#     res[key].append(rmse)
-
-#     key= 'latent_ica_pred_r2'
-#     if key not in res.keys():
-#         res[key]=[]
-#     res[key].append(r2)
-        
 #     # Plotting RMSE values in label prediction
 #     for idx in range(true_y['te'].shape[1]):
 # #         plt.plot(range(true_y['te'].shape[0]), pred_y['te'][:, idx], label='Predicted Var' )
@@ -327,4 +282,4 @@ for seed in range(1, 1+num_seeds):
 print('Final Results')
 for key in res.keys():
     res[key]= np.array(res[key])
-    print('Metric: ', key, np.mean(res[key]), np.std(res[key]))
+    print('Metric: ', key, np.mean(res[key]), np.std(res[key])/np.sqrt(num_seeds))

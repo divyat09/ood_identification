@@ -36,6 +36,7 @@ def get_predictions_check(train_dataset, test_dataset):
         for batch_idx, (x, y, z) in enumerate(dataset):
 
             with torch.no_grad():
+                                
                 true_x[key].append(x)
                 true_z[key].append(z)
 
@@ -98,8 +99,16 @@ def get_direct_prediction_error(pred_score, true_score, case='test', final_task=
     elif case == 'test':
         key= 'te'
     
-    if final_task:
-        res= 100*np.sum( np.argmax(pred_score[key], axis=1) == true_score[key] )/true_score[key].shape[0]
+    if final_task:        
+        target= true_score[key]
+        pred= pred_score[key]
+        pred= 1/(1+np.exp(-1*pred))
+        pred[pred>=0.5]= 1 
+        pred[pred<0.5]= 0
+        res= 100*np.mean(pred==target)
+        
+#         res= 100*np.sum( np.argmax(pred_score[key], axis=1) == true_score[key] )/true_score[key].shape[0]
+        
     else:
         res= np.sqrt(np.mean((true_score[key] - pred_score[key])**2)), r2_score(true_score[key], pred_score[key])
     
@@ -113,9 +122,17 @@ def get_indirect_prediction_error(pred_latent, true_score, case='test', final_ta
         key= 'te'
         
     if final_task:
-        clf= LogisticRegression(multi_class='multinomial', penalty='none').fit(pred_latent['tr'], true_score['tr'])
-        pred_score= clf.predict(pred_latent[key])
-        res= 100*np.sum( pred_score == true_score[key] )/true_score[key].shape[0]
+        
+#         clf= LogisticRegression(multi_class='multinomial', penalty='none').fit(pred_latent['tr'], true_score['tr'])
+#         pred_score= clf.predict(pred_latent[key])
+#         res= 100*np.sum( pred_score == true_score[key] )/true_score[key].shape[0]
+        N= true_score[key].shape[0]
+        D= true_score[key].shape[1]
+        res=0.0
+        for idx in range(D):
+            clf= LogisticRegression(penalty='none').fit(pred_latent['tr'], true_score['tr'][:, idx])
+            pred_score= clf.predict(pred_latent[key])
+            res+= 100*np.sum( pred_score == true_score[key][:, idx] )/(N*D)
     else:
         reg= linear_regression_approx(pred_latent['tr'], true_score['tr'], fit_intercept=True)
         pred_score= reg.predict(pred_latent[key])
@@ -178,7 +195,7 @@ def get_cross_correlation(pred_latent, true_latent, case='test'):
     cost= -1*np.abs(cross_corr)
     row_ind, col_ind= linear_sum_assignment(cost)
     
-#     score= 100*np.sum( -1*cost[row_ind, col_ind].sum() )/(dim)
-    score= 100*np.sum( -1*cost[row_ind, col_ind] > 0.80 )/(dim)
+    score= 100*np.sum( -1*cost[row_ind, col_ind].sum() )/(dim)
+#     score= 100*np.sum( -1*cost[row_ind, col_ind] > 0.80 )/(dim)
     
     return score

@@ -20,7 +20,6 @@ class FC(torch.nn.Module):
         self.rep_net= self.get_representation_network()
         
         self.fc_net= nn.Sequential(                    
-#                     nn.Linear(100, num_tasks),
                     nn.Linear(inp_dim, num_tasks),
         )
         

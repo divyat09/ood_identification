@@ -62,9 +62,9 @@ class ERM():
         self.ica_fitted= 0
         
         if self.latent_pred_task:
-            self.save_path= self.res_dir + 'num_tasks_' + str(self.args.num_tasks) + '_data_dim_' + str(self.args.data_dim) + '_latent_prediction_task.pth'
+            self.save_path= self.res_dir + 'final_task_' + str(self.args.final_task) + '_num_tasks_' + str(self.args.num_tasks) + '_data_dim_' + str(self.args.data_dim) + '_latent_prediction_task.pth'
         else:
-            self.save_path= self.res_dir + 'num_tasks_' + str(self.args.num_tasks) + '_data_dim_' + str(self.args.data_dim) + '.pth'
+            self.save_path= self.res_dir + 'final_task_' + str(self.args.final_task) + '_num_tasks_' + str(self.args.num_tasks) + '_data_dim_' + str(self.args.data_dim) + '.pth'
             
     
     def get_optimizer(self, lr, weight_decay):        
@@ -107,7 +107,10 @@ class ERM():
                         out, z_pred= self.model(x)
                     
                 if self.args.final_task:
-                    loss= self.clf_loss(out, y.long())
+#                     loss= self.clf_loss(out, y.long())
+                    prob= F.sigmoid(out)
+                    eps= 1e-7
+                    loss= -1*torch.mean(y*torch.log(prob+eps) + (1-y)*torch.log(1-prob+eps))
                 else:    
                     loss= torch.mean(((out-y)**2)) 
                     
@@ -170,11 +173,21 @@ class ERM():
                         out, z_pred= self.model(x)
 
                     if self.args.final_task:
-                        loss= self.clf_loss(out, y.long())
-                        acc= torch.sum(torch.argmax(out, dim=1) == y)
+#                         loss= self.clf_loss(out, y.long())
+#                         acc= torch.sum(torch.argmax(out, dim=1) == y)
+                        prob= F.sigmoid(out)
+                        eps= 1e-7
+                        loss= -1*torch.mean(y*torch.log(prob+eps) + (1-y)*torch.log(1-prob+eps))
+                    
+                        pred= prob.detach().clone()
+                        target= y.detach().clone()
+                        pred[pred>=0.5]= 1
+                        pred[pred<0.5]= 0
+                        acc= torch.sum(pred==target)/pred.shape[1]
+                        
                     else:    
-                        loss= torch.mean(torch.abs(out-y))
-#                         loss= torch.mean(((out-y)**2))                        
+#                         loss= torch.mean(torch.abs(out-y))
+                        loss= torch.mean(((out-y)**2))
                 
                 if epoch > self.args.ica_start and self.args.train_ica:
                     
