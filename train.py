@@ -176,14 +176,14 @@ for seed in range(1, 1+num_seeds):
     pca_z= get_pca_sources(pred_z, method.pca_transform)
 
     
-    np.save( 'true_z_tr.npy', true_z['tr'] )
-    np.save( 'true_z_te.npy', true_z['te'] )
+#     np.save( 'true_z_tr.npy', true_z['tr'] )
+#     np.save( 'true_z_te.npy', true_z['te'] )
     
-    np.save( 'pred_z_tr.npy', pred_z['tr'] )
-    np.save( 'pred_z_te.npy', pred_z['te'] )
+#     np.save( 'pred_z_tr.npy', pred_z['tr'] )
+#     np.save( 'pred_z_te.npy', pred_z['te'] )
     
-    np.save( 'ica_z_tr.npy', ica_z['tr'] )    
-    np.save( 'ica_z_te.npy', ica_z['te'] )    
+#     np.save( 'ica_z_tr.npy', ica_z['tr'] )    
+#     np.save( 'ica_z_te.npy', ica_z['te'] )    
     
 
     #Label Prediction Error with ICA
