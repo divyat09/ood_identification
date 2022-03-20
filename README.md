@@ -9,7 +9,7 @@ Humans have a remarkable ability to disentangle complex sensory inputs (e.g., im
 
 # Reproducibility
 
-Use the script 'scripts/reeproduce_results.sh' to reproduce the results in the paper.
+Use the script "scripts/reproduce_results.sh" to reproduce the results in the paper.
 
 ## Example Usage
 
