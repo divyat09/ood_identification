@@ -1,5 +1,5 @@
 # Towards efficient representation identification in supervised learning
-Code accompanying the paper [Towards efficient representation identification in supervised learning](https://openreview.net/forum?id=7UwoSnMDXWE) published in [CleaR 2022](https://www.cclear.cc/2022)
+Code accompanying the paper [Towards efficient representation identification in supervised learning](https://openreview.net/forum?id=7UwoSnMDXWE) published in [CLeaR (Causal Learning and Reasoning) 2022](https://www.cclear.cc/2022)
 
 # Brief note about the paper
 
