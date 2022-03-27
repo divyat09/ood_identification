@@ -23,3 +23,6 @@ Run the proposed ERM-ICA method to solve the regression task and identify the la
 
     python3 scripts/vanilla_analysis.py --data_dir regression_num_layer_2_latent_uniform_discrete --data_dim 16 --num_tasks_list 8 12 16 --train_model 1
 
+Generate the plot for the regression task.
+
+    python3 scripts/regression_analysis.py --data_dim_list 16 --num_tasks_list 8 12 16

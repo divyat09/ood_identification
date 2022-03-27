@@ -161,7 +161,7 @@ for num_tasks in num_tasks_list:
         f= base_dir+ 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' + data_case + '_' + 'y' + '.npy'
         np.save(f, labels)
 
-        base_dir= 'plots/'
-        plt.scatter(x[:, 0], x[:, 1])
-        plt.savefig(base_dir + 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' +  data_case +  '_x' + '.png')
-        plt.clf()
+#         base_dir= 'plots/'
+#         plt.scatter(x[:, 0], x[:, 1])
+#         plt.savefig(base_dir + 'tasks_' + str(num_tasks) + '_dim_' + str(data_dim) + '_' +  data_case +  '_x' + '.png')
+#         plt.clf()

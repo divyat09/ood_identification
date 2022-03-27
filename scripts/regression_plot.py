@@ -1,3 +1,4 @@
+import os
 import matplotlib
 import matplotlib.pyplot as plt
 import argparse
@@ -124,8 +125,10 @@ for data_dim in data_dim_list:
 lines, labels = fig.axes[-1].get_legend_handles_labels()    
 lgd= fig.legend(lines, labels, loc="lower center", bbox_to_anchor=(0.5, -0.20), fontsize=fontsize, ncol=3)
     
+if not os.path.exists('plots_final/'):
+    os.makedirs('plots_final/') 
 plt.tight_layout()
-plt.savefig('plots_final/rmse_label.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
+plt.savefig('plots_final/regression_rmse_label.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
 
 
 
@@ -181,8 +184,10 @@ for data_dim in data_dim_list:
 lines, labels = fig.axes[-1].get_legend_handles_labels()    
 lgd= fig.legend(lines, labels, loc="lower center", bbox_to_anchor=(0.5, -0.20), fontsize=fontsize, ncol=3)
     
+if not os.path.exists('plots_final/'):
+    os.makedirs('plots_final/') 
 plt.tight_layout()
-plt.savefig('plots_final/r2_label.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
+plt.savefig('plots_final/regression_r2_label.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
 
 
 #Latent Prediction MCC Score
@@ -237,5 +242,7 @@ for data_dim in data_dim_list:
 lines, labels = fig.axes[-1].get_legend_handles_labels()    
 lgd= fig.legend(lines, labels, loc="lower center", bbox_to_anchor=(0.5, -0.20), fontsize=fontsize, ncol=3)
     
+if not os.path.exists('plots_final/'):
+    os.makedirs('plots_final/') 
 plt.tight_layout()
-plt.savefig('plots_final/mcc_latent.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
+plt.savefig('plots_final/regression_mcc_latent.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)

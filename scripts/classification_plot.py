@@ -1,19 +1,19 @@
+import os
 import matplotlib
 import matplotlib.pyplot as plt
+import argparse
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_dim_list', nargs='+', type=int, default=[16], 
+                    help='')
+parser.add_argument('--num_tasks_list', nargs='+', type=int, default=[8, 12, 16], 
+                    help='')
+args = parser.parse_args()
+
+
+data_dim_list= args.data_dim_list
+num_tasks_list= args.num_tasks_list
 num_fc= 2
-
-# data_dim_list= [16]
-# num_tasks_list= [8, 12, 16]
-
-data_dim_list= [50]
-num_tasks_list= [25, 37, 50]
-
-# data_dim_list= [32]
-# num_tasks_list= [16, 24, 32]
-
-# data_dim_list= [24]
-# num_tasks_list= [12, 18, 24]
 
 x_ticks=[]
 for item in num_tasks_list:
@@ -116,8 +116,10 @@ for data_dim in data_dim_list:
 lines, labels = fig.axes[-1].get_legend_handles_labels()    
 lgd= fig.legend(lines, labels, loc="lower center", bbox_to_anchor=(0.5, -0.20), fontsize=fontsize, ncol=3)
     
+if not os.path.exists('plots_final/'):
+    os.makedirs('plots_final/') 
 plt.tight_layout()
-plt.savefig('plots_final/acc_label.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
+plt.savefig('plots_final/classification_acc_label.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
 
 
 
@@ -173,5 +175,7 @@ for data_dim in data_dim_list:
 lines, labels = fig.axes[-1].get_legend_handles_labels()    
 lgd= fig.legend(lines, labels, loc="lower center", bbox_to_anchor=(0.5, -0.20), fontsize=fontsize, ncol=3)
     
+if not os.path.exists('plots_final/'):
+    os.makedirs('plots_final/') 
 plt.tight_layout()
-plt.savefig('plots_final/mcc_latent.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
+plt.savefig('plots_final/classification_mcc_latent.pdf', bbox_extra_artists=(lgd,), bbox_inches='tight',  dpi=600)
